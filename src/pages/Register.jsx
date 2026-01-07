@@ -15,19 +15,33 @@ export default function Register() {
     setLoading(true);
     setMessage("");
 
-    const data = await apiRequest("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const data = await apiRequest("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (data.message === "User registered successfully") {
-      setMessage("Account created. Redirecting to login...");
-      setTimeout(() => navigate("/login"), 1500);
-    } else {
+      // ✅ CASE 1: New user created
+      if (data.message === "User registered successfully") {
+        setMessage("Account created. Redirecting to login...");
+        setTimeout(() => navigate("/login"), 1200);
+        return;
+      }
+
+      // ✅ CASE 2: User already exists → go to login
+      if (data.message === "User already exists") {
+        setMessage("Account already exists. Redirecting to login...");
+        setTimeout(() => navigate("/login"), 1200);
+        return;
+      }
+
+      // ❌ Any other case
       setMessage(data.message || "Registration failed");
+    } catch (error) {
+      setMessage("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
