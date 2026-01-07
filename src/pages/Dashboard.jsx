@@ -4,14 +4,19 @@ import { useAuth } from "../context/AuthContext";
 
 export default function Dashboard() {
   const { logout } = useAuth();
+
+  // User data
   const [email, setEmail] = useState("");
   const [topics, setTopics] = useState([]);
   const [isSubscribed, setIsSubscribed] = useState(true);
 
+  // UI state
   const [newTopic, setNewTopic] = useState("");
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
+  /* ---------------- FETCH PROFILE ---------------- */
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -24,50 +29,65 @@ export default function Dashboard() {
       setIsSubscribed(data.isSubscribed);
     } catch {
       setMessage("Failed to load profile");
+    } finally {
+      setLoadingProfile(false);
     }
   };
 
+  /* ---------------- SUBSCRIPTION (OPTIMISTIC) ---------------- */
   const toggleSubscription = async () => {
+    const previous = isSubscribed;
+    setIsSubscribed(!previous); // instant UI update
+
     try {
-      const data = await apiRequest("/api/user/subscription", {
+      await apiRequest("/api/user/subscription", {
         method: "POST",
-        body: JSON.stringify({ isSubscribed: !isSubscribed }),
+        body: JSON.stringify({ isSubscribed: !previous }),
       });
-      setIsSubscribed(data.isSubscribed);
     } catch {
+      setIsSubscribed(previous); // rollback
       setMessage("Failed to update subscription");
     }
   };
 
+  /* ---------------- ADD TOPIC (OPTIMISTIC) ---------------- */
   const addTopic = async () => {
     if (!newTopic.trim()) return;
+
+    const topic = newTopic.trim();
+    setTopics((prev) => [...prev, topic]); // instant
+    setNewTopic("");
 
     try {
       await apiRequest("/api/user/topics/add", {
         method: "POST",
-        body: JSON.stringify({ topic: newTopic }),
+        body: JSON.stringify({ topic }),
       });
-      setNewTopic("");
-      fetchProfile();
     } catch {
+      setTopics((prev) => prev.filter((t) => t !== topic)); // rollback
       setMessage("Failed to add topic");
     }
   };
 
+  /* ---------------- REMOVE TOPIC (OPTIMISTIC) ---------------- */
   const removeTopic = async (topic) => {
+    const previous = topics;
+    setTopics((prev) => prev.filter((t) => t !== topic)); // instant
+
     try {
       await apiRequest("/api/user/topics/remove", {
         method: "POST",
         body: JSON.stringify({ topic }),
       });
-      fetchProfile();
     } catch {
+      setTopics(previous); // rollback
       setMessage("Failed to remove topic");
     }
   };
 
+  /* ---------------- MANUAL EMAIL ---------------- */
   const sendManualEmail = async () => {
-    setLoading(true);
+    setSendingEmail(true);
     setMessage("");
 
     try {
@@ -78,39 +98,40 @@ export default function Dashboard() {
     } catch {
       setMessage("Failed to send email");
     } finally {
-      setLoading(false);
+      setSendingEmail(false);
     }
   };
 
+  /* ---------------- UI ---------------- */
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-black text-white">
       <div className="max-w-5xl mx-auto px-6 py-10">
 
         {/* HEADER */}
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-purple-400">
-            Welcome, {email}
-          </h1>
+          {loadingProfile ? (
+            <div className="h-8 w-64 bg-slate-700 rounded animate-pulse" />
+          ) : (
+            <h1 className="text-3xl font-bold text-purple-400">
+              Welcome, {email}
+            </h1>
+          )}
           <p className="text-gray-400 mt-1">
             Manage your news preferences and subscription
           </p>
         </div>
 
-        {/* GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          {/* SUBSCRIPTION CARD */}
+          {/* SUBSCRIPTION */}
           <div className="bg-slate-800/70 rounded-xl p-6 shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">
-              Email Subscription
-            </h2>
+            <h2 className="text-xl font-semibold mb-4">Email Subscription</h2>
 
             <div className="flex items-center justify-between">
               <span className="text-gray-300">
                 {isSubscribed ? "Enabled" : "Disabled"}
               </span>
 
-              {/* TOGGLE */}
               <button
                 onClick={toggleSubscription}
                 className={`w-14 h-7 flex items-center rounded-full p-1 transition ${
@@ -126,26 +147,21 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* MANUAL EMAIL CARD */}
+          {/* MANUAL EMAIL */}
           <div className="bg-slate-800/70 rounded-xl p-6 shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">
-              Manual Digest
-            </h2>
-
+            <h2 className="text-xl font-semibold mb-4">Manual Digest</h2>
             <button
               onClick={sendManualEmail}
-              disabled={loading}
+              disabled={sendingEmail}
               className="w-full py-2 rounded-lg bg-purple-600 hover:bg-purple-700 transition font-semibold"
             >
-              {loading ? "Sending..." : "Send News Email"}
+              {sendingEmail ? "Sending..." : "Send News Email"}
             </button>
           </div>
 
-          {/* TOPICS CARD */}
+          {/* TOPICS */}
           <div className="md:col-span-2 bg-slate-800/70 rounded-xl p-6 shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">
-              Your Topics
-            </h2>
+            <h2 className="text-xl font-semibold mb-4">Your Topics</h2>
 
             <div className="flex flex-wrap gap-2 mb-4">
               {topics.length === 0 && (
@@ -186,18 +202,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* FOOTER */}
         {message && (
-          <p className="mt-6 text-center text-sm text-green-400">
-            {message}
-          </p>
+          <p className="mt-6 text-center text-sm text-green-400">{message}</p>
         )}
 
         <div className="mt-10 text-center">
-          <button
-            onClick={logout}
-            className="text-red-400 hover:underline"
-          >
+          <button onClick={logout} className="text-red-400 hover:underline">
             Logout
           </button>
         </div>
