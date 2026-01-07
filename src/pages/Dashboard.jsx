@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 export default function Dashboard() {
   const { logout } = useAuth();
 
-  /* ---------------- STABLE EMAIL (NO RE-RENDER) ---------------- */
+  /* ---------------- STABLE EMAIL (FAST + CORRECT) ---------------- */
   const initialEmail = localStorage.getItem("userEmail") || "";
   const emailRef = useRef(initialEmail);
   const [email, setEmail] = useState(initialEmail);
@@ -18,7 +18,7 @@ export default function Dashboard() {
   const [message, setMessage] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
 
-  /* ---------------- FETCH PROFILE (BACKGROUND ONLY) ---------------- */
+  /* ---------------- FETCH PROFILE (BACKGROUND SYNC) ---------------- */
   useEffect(() => {
     fetchProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -28,8 +28,8 @@ export default function Dashboard() {
     try {
       const data = await apiRequest("/api/user/profile");
 
-      // 🔒 Update email ONCE only if missing
-      if (!emailRef.current && data.email) {
+      // ✅ ALWAYS sync if backend user differs
+      if (data.email && data.email !== emailRef.current) {
         emailRef.current = data.email;
         setEmail(data.email);
         localStorage.setItem("userEmail", data.email);
