@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* 🔥 CRITICAL FOR FULL-SCREEN LAYOUTS */
+html, body, #root {
+  height: 100%;
+}
