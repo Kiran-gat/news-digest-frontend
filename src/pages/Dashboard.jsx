@@ -5,18 +5,20 @@ import { useAuth } from "../context/AuthContext";
 export default function Dashboard() {
   const { logout } = useAuth();
 
-  // User data
-  const [email, setEmail] = useState("");
+  /* ---------------- INSTANT STATE ---------------- */
+  const [email, setEmail] = useState(
+    () => localStorage.getItem("userEmail") || ""
+  );
   const [topics, setTopics] = useState([]);
   const [isSubscribed, setIsSubscribed] = useState(true);
 
-  // UI state
+  /* ---------------- UI STATE ---------------- */
   const [newTopic, setNewTopic] = useState("");
   const [message, setMessage] = useState("");
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [sendingEmail, setSendingEmail] = useState(false);
 
-  /* ---------------- FETCH PROFILE ---------------- */
+  /* ---------------- FETCH PROFILE (BACKGROUND) ---------------- */
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -24,7 +26,13 @@ export default function Dashboard() {
   const fetchProfile = async () => {
     try {
       const data = await apiRequest("/api/user/profile");
-      setEmail(data.email);
+
+      // Update state ONLY if data differs
+      if (data.email && data.email !== email) {
+        setEmail(data.email);
+        localStorage.setItem("userEmail", data.email);
+      }
+
       setTopics(data.topics || []);
       setIsSubscribed(data.isSubscribed);
     } catch {
@@ -37,7 +45,7 @@ export default function Dashboard() {
   /* ---------------- SUBSCRIPTION (OPTIMISTIC) ---------------- */
   const toggleSubscription = async () => {
     const previous = isSubscribed;
-    setIsSubscribed(!previous); // instant UI update
+    setIsSubscribed(!previous); // instant UI
 
     try {
       await apiRequest("/api/user/subscription", {
@@ -64,7 +72,7 @@ export default function Dashboard() {
         body: JSON.stringify({ topic }),
       });
     } catch {
-      setTopics((prev) => prev.filter((t) => t !== topic)); // rollback
+      setTopics((prev) => prev.filter((t) => t !== topic));
       setMessage("Failed to add topic");
     }
   };
@@ -80,7 +88,7 @@ export default function Dashboard() {
         body: JSON.stringify({ topic }),
       });
     } catch {
-      setTopics(previous); // rollback
+      setTopics(previous);
       setMessage("Failed to remove topic");
     }
   };
@@ -109,13 +117,9 @@ export default function Dashboard() {
 
         {/* HEADER */}
         <div className="mb-10">
-          {loadingProfile ? (
-            <div className="h-8 w-64 bg-slate-700 rounded animate-pulse" />
-          ) : (
-            <h1 className="text-3xl font-bold text-purple-400">
-              Welcome, {email}
-            </h1>
-          )}
+          <h1 className="text-3xl font-bold text-purple-400">
+            Welcome{email ? `, ${email}` : ""}
+          </h1>
           <p className="text-gray-400 mt-1">
             Manage your news preferences and subscription
           </p>
@@ -125,7 +129,9 @@ export default function Dashboard() {
 
           {/* SUBSCRIPTION */}
           <div className="bg-slate-800/70 rounded-xl p-6 shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">Email Subscription</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              Email Subscription
+            </h2>
 
             <div className="flex items-center justify-between">
               <span className="text-gray-300">
@@ -203,7 +209,9 @@ export default function Dashboard() {
         </div>
 
         {message && (
-          <p className="mt-6 text-center text-sm text-green-400">{message}</p>
+          <p className="mt-6 text-center text-sm text-green-400">
+            {message}
+          </p>
         )}
 
         <div className="mt-10 text-center">
