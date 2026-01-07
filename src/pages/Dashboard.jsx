@@ -1,34 +1,36 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 export default function Dashboard() {
   const { logout } = useAuth();
 
-  /* ---------------- INSTANT STATE ---------------- */
-  const [email, setEmail] = useState(
-    () => localStorage.getItem("userEmail") || ""
-  );
+  /* ---------------- STABLE EMAIL (NO RE-RENDER) ---------------- */
+  const initialEmail = localStorage.getItem("userEmail") || "";
+  const emailRef = useRef(initialEmail);
+  const [email, setEmail] = useState(initialEmail);
+
   const [topics, setTopics] = useState([]);
   const [isSubscribed, setIsSubscribed] = useState(true);
 
   /* ---------------- UI STATE ---------------- */
   const [newTopic, setNewTopic] = useState("");
   const [message, setMessage] = useState("");
-  const [loadingProfile, setLoadingProfile] = useState(true);
   const [sendingEmail, setSendingEmail] = useState(false);
 
-  /* ---------------- FETCH PROFILE (BACKGROUND) ---------------- */
+  /* ---------------- FETCH PROFILE (BACKGROUND ONLY) ---------------- */
   useEffect(() => {
     fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchProfile = async () => {
     try {
       const data = await apiRequest("/api/user/profile");
 
-      // Update state ONLY if data differs
-      if (data.email && data.email !== email) {
+      // 🔒 Update email ONCE only if missing
+      if (!emailRef.current && data.email) {
+        emailRef.current = data.email;
         setEmail(data.email);
         localStorage.setItem("userEmail", data.email);
       }
@@ -37,15 +39,13 @@ export default function Dashboard() {
       setIsSubscribed(data.isSubscribed);
     } catch {
       setMessage("Failed to load profile");
-    } finally {
-      setLoadingProfile(false);
     }
   };
 
   /* ---------------- SUBSCRIPTION (OPTIMISTIC) ---------------- */
   const toggleSubscription = async () => {
     const previous = isSubscribed;
-    setIsSubscribed(!previous); // instant UI
+    setIsSubscribed(!previous);
 
     try {
       await apiRequest("/api/user/subscription", {
@@ -53,7 +53,7 @@ export default function Dashboard() {
         body: JSON.stringify({ isSubscribed: !previous }),
       });
     } catch {
-      setIsSubscribed(previous); // rollback
+      setIsSubscribed(previous);
       setMessage("Failed to update subscription");
     }
   };
@@ -63,7 +63,7 @@ export default function Dashboard() {
     if (!newTopic.trim()) return;
 
     const topic = newTopic.trim();
-    setTopics((prev) => [...prev, topic]); // instant
+    setTopics((prev) => [...prev, topic]);
     setNewTopic("");
 
     try {
@@ -80,7 +80,7 @@ export default function Dashboard() {
   /* ---------------- REMOVE TOPIC (OPTIMISTIC) ---------------- */
   const removeTopic = async (topic) => {
     const previous = topics;
-    setTopics((prev) => prev.filter((t) => t !== topic)); // instant
+    setTopics((prev) => prev.filter((t) => t !== topic));
 
     try {
       await apiRequest("/api/user/topics/remove", {
