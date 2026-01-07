@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
-  const { login } = useAuth(); // ✅ use context login
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -23,7 +23,6 @@ export default function Login() {
         body: JSON.stringify({ email, password }),
       });
 
-      // Support multiple possible backend response formats
       const token =
         data?.token ||
         data?.accessToken ||
@@ -31,13 +30,17 @@ export default function Login() {
 
       if (!token) {
         setMessage("Invalid login response");
-        setLoading(false);
         return;
       }
 
-      // ✅ CORRECT WAY
-      login(token);           // updates state + localStorage
-      navigate("/dashboard"); // dashboard opens immediately
+      /* 🔥 CRITICAL FIX (THIS SOLVES YOUR ISSUE) */
+      localStorage.setItem("userEmail", email);
+
+      /* Auth context update */
+      login(token);
+
+      /* Navigate immediately */
+      navigate("/dashboard");
 
     } catch (error) {
       setMessage(error.message || "Login failed");
