@@ -6,8 +6,9 @@ import { useAuth } from "./context/AuthContext";
 
 /**
  * App Routing
- * - Public routes are blocked if logged in
- * - Dashboard is protected
+ * - Fast initial load (no extra redirects)
+ * - Public routes blocked if logged in
+ * - Dashboard protected
  */
 export default function App() {
   const { isAuthenticated } = useAuth();
@@ -15,6 +16,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+
+        {/* ✅ ROOT ROUTE (FAST ENTRY POINT) */}
+        <Route
+          path="/"
+          element={
+            isAuthenticated
+              ? <Navigate to="/dashboard" replace />
+              : <Navigate to="/register" replace />
+          }
+        />
+
         {/* Public Routes */}
         <Route
           path="/register"
@@ -38,13 +50,6 @@ export default function App() {
           }
         />
 
-        {/* Default Redirect */}
-        <Route
-          path="*"
-          element={
-            <Navigate to={isAuthenticated ? "/dashboard" : "/login"} />
-          }
-        />
       </Routes>
     </BrowserRouter>
   );
